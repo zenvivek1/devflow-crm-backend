@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String?  @db.VarChar
+  createdAt DateTime @default(now()) @map("created_at")
+
+  users      User[]
+  clients    Client[]
+  projects   Project[]
+  documents  Document[]
+  tasks      Task[]
+  notes      Note[]
+  activities Activity[]
+
+  @@map("organizations")
+}
+
+model User {
+  id                   String   @id @default(uuid()) @db.Uuid
+  organizationId       String   @map("organization_id") @db.Uuid
+  email                String   @unique @db.VarChar
+  passwordHash         String   @map("password_hash") @db.VarChar
+  resetTokenHash       String?  @map("reset_token_hash") @db.VarChar
+  resetTokenExpiresAt  DateTime? @map("reset_token_expires_at")
+  refreshTokenHash     String?  @map("refresh_token_hash") @db.VarChar
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("users")
+}
+
+model Client {
+  id              String       @id @default(uuid()) @db.Uuid
+  organizationId  String       @map("organization_id") @db.Uuid
+  name            String       @db.VarChar
+  companyName     String?      @map("company_name") @db.VarChar
+  website         String?      @db.VarChar
+  contactEmail    String?      @map("contact_email") @db.VarChar
+  contactPhone    String?      @map("contact_phone") @db.VarChar
+  country         String?      @db.VarChar
+  timezone        String?      @db.VarChar
+  source          ClientSource?
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  projects     Project[]
+  tasks        Task[]
+  notes        Note[]
+  activities   Activity[]
+
+  @@index([organizationId])
+  @@index([organizationId, name])
+  @@map("clients")
+}
+
+model Project {
+  id               String       @id @default(uuid()) @db.Uuid
+  organizationId   String       @map("organization_id") @db.Uuid
+  clientId         String       @map("client_id") @db.Uuid
+  techStack        String?      @map("tech_stack") @db.VarChar
+  githubRepoUrl    String?      @map("github_repo_url") @db.VarChar
+  stagingUrl       String?      @map("staging_url") @db.VarChar
+  productionUrl    String?      @map("production_url") @db.VarChar
+  apiDocsUrl       String?      @map("api_docs_url") @db.VarChar
+  hostingProvider  String?      @map("hosting_provider") @db.VarChar
+  stage            ProjectStage @default(client_inquiry)
+  budget           Decimal?     @db.Decimal(10, 2)
+  currency         String?      @db.VarChar
+  projectType      ProjectType? @map("project_type")
+  priority         Priority?
+  deadline         DateTime?
+  nextMeetingAt    DateTime?    @map("next_meeting_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  client       Client       @relation(fields: [clientId], references: [id])
+  documents    Document[]
+  tasks        Task[]
+  notes        Note[]
+  activities   Activity[]
+
+  @@index([organizationId])
+  @@index([organizationId, clientId])
+  @@index([organizationId, stage])
+  @@index([organizationId, deadline])
+  @@index([organizationId, priority])
+  @@map("projects")
+}
+
+model Document {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  projectId      String         @map("project_id") @db.Uuid
+  type           DocumentType
+  status         DocumentStatus @default(draft)
+  url            String?        @db.VarChar
+  storageKey     String?        @map("storage_key") @db.VarChar
+  fileName       String?        @map("file_name") @db.VarChar
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  project      Project      @relation(fields: [projectId], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, projectId, type])
+  @@map("documents")
+}
+
+model Task {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  clientId       String?   @map("client_id") @db.Uuid
+  projectId      String?   @map("project_id") @db.Uuid
+  title          String    @db.VarChar
+  dueDate        DateTime? @map("due_date")
+  done           Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  client       Client?      @relation(fields: [clientId], references: [id])
+  project      Project?     @relation(fields: [projectId], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, dueDate])
+  @@index([organizationId, done])
+  @@map("tasks")
+}
+
+model Note {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  clientId       String?  @map("client_id") @db.Uuid
+  projectId      String?  @map("project_id") @db.Uuid
+  content        String   @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  client       Client?      @relation(fields: [clientId], references: [id])
+  project      Project?     @relation(fields: [projectId], references: [id])
+
+  @@index([organizationId])
+  @@map("notes")
+}
+
+model Activity {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  clientId       String?  @map("client_id") @db.Uuid
+  projectId      String?  @map("project_id") @db.Uuid
+  action         String   @db.VarChar
+  meta           Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  client       Client?      @relation(fields: [clientId], references: [id])
+  project      Project?     @relation(fields: [projectId], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, clientId, createdAt])
+  @@index([organizationId, projectId, createdAt])
+  @@map("activities")
+}
+
+enum ClientSource {
+  referral
+  upwork
+  linkedin
+  cold_outreach
+  personal_network
+  other
+}
+
+enum ProjectStage {
+  client_inquiry
+  requirement_discussion
+  proposal
+  contract
+  development
+  testing
+  deployment
+  payment
+  maintenance
+}
+
+enum ProjectType {
+  fixed_price
+  hourly
+  retainer
+}
+
+enum Priority {
+  low
+  medium
+  high
+}
+
+enum DocumentType {
+  proposal
+  contract
+  nda
+  requirement_doc
+  invoice
+}
+
+enum DocumentStatus {
+  draft
+  sent
+  signed
+  paid
+  overdue
+}
